@@ -44,6 +44,8 @@ jobs:
               repoURL: https://github.com/${{ github.event.inputs.repoOwner }}/${{ github.event.inputs.repoName }}.git
               targetRevision: main
               path: k8s
+              directory:
+                exclude: 'argocd-application.yaml'
             destination:
               server: https://kubernetes.default.svc
               namespace: ${{ github.event.inputs.namespace }}
