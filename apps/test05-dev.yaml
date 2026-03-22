@@ -11,6 +11,8 @@ spec:
     repoURL: https://github.com/stratpoint-engineering/test05.git
     targetRevision: main
     path: k8s
+    directory:
+      exclude: 'argocd-application.yaml'
   destination:
     server: https://kubernetes.default.svc
     namespace: test05-dev
