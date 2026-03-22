@@ -1,0 +1,72 @@
+name: Register ArgoCD Application
+
+on:
+  workflow_dispatch:
+    inputs:
+      appName:
+        description: Application name
+        required: true
+      repoOwner:
+        description: GitHub org/owner
+        required: true
+      repoName:
+        description: Repository name
+        required: true
+      environment:
+        description: Target environment (dev/staging/prod)
+        required: true
+      namespace:
+        description: Kubernetes namespace
+        required: true
+
+jobs:
+  register:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create ArgoCD Application manifest
+        run: |
+          mkdir -p apps
+          cat > apps/${{ github.event.inputs.appName }}-${{ github.event.inputs.environment }}.yaml << 'EOF'
+          apiVersion: argoproj.io/v1alpha1
+          kind: Application
+          metadata:
+            name: ${{ github.event.inputs.appName }}-${{ github.event.inputs.environment }}
+            namespace: devtroncd
+            finalizers:
+              - resources-finalizer.argocd.argoproj.io
+          spec:
+            project: default
+            source:
+              repoURL: https://github.com/${{ github.event.inputs.repoOwner }}/${{ github.event.inputs.repoName }}.git
+              targetRevision: main
+              path: k8s
+            destination:
+              server: https://kubernetes.default.svc
+              namespace: ${{ github.event.inputs.namespace }}
+            syncPolicy:
+              automated:
+                prune: true
+                selfHeal: true
+              syncOptions:
+                - CreateNamespace=true
+                - ApplyOutOfSyncOnly=true
+              retry:
+                limit: 5
+                backoff:
+                  duration: 5s
+                  factor: 2
+                  maxDuration: 3m
+          EOF
+
+      - name: Commit and push
+        run: |
+          git config user.name "backstage-bot"
+          git config user.email "backstage-bot@stratpoint.com"
+          git add apps/
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "feat: register ArgoCD app ${{ github.event.inputs.appName }}-${{ github.event.inputs.environment }}"
+          git push
